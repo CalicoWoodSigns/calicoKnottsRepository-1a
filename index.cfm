@@ -53,7 +53,39 @@
         <cfset todaysTotal = todaysTotal + todaysSales.saleAmount>
     </cfloop>
     
-    <!--- Employee leaderboard (hourly sales rate) --->
+    <!--- Get this week's date range (needed for leaderboard) --->
+    <cfset startOfWeek = dateAdd("d", -(dayOfWeek(now()) - 2), now())>
+    <cfif dayOfWeek(startOfWeek) EQ 1>
+        <cfset startOfWeek = dateAdd("d", -6, startOfWeek)>
+    </cfif>
+    <cfset endOfWeek = dateAdd("d", 6, startOfWeek)>
+    
+    <!--- Handle leaderboard time period selection --->
+    <cfparam name="leaderboardPeriod" default="week">
+    <cfif structKeyExists(url, "period")>
+        <cfset leaderboardPeriod = url.period>
+    </cfif>
+    
+    <!--- Set date range for leaderboard --->
+    <cfswitch expression="#leaderboardPeriod#">
+        <cfcase value="week">
+            <cfset leaderboardStartDate = startOfWeek>
+            <cfset leaderboardEndDate = endOfWeek>
+            <cfset leaderboardTitle = "This Week">
+        </cfcase>
+        <cfcase value="month">
+            <cfset leaderboardStartDate = createDate(year(now()), month(now()), 1)>
+            <cfset leaderboardEndDate = now()>
+            <cfset leaderboardTitle = "This Month">
+        </cfcase>
+        <cfcase value="alltime">
+            <cfset leaderboardStartDate = createDate(2020, 1, 1)>
+            <cfset leaderboardEndDate = now()>
+            <cfset leaderboardTitle = "All Time">
+        </cfcase>
+    </cfswitch>
+    
+    <!--- Employee leaderboard with time period filter --->
     <cfquery name="employeeStats" datasource="calicoknotts_db">
         SELECT 
             e.EID,
@@ -68,17 +100,15 @@
             END as hourlySalesRate
         FROM employeeInfo e
         LEFT JOIN employeeSales s ON e.EID = s.EID
+        <cfif leaderboardPeriod NEQ "alltime">
+            AND CAST(s.saleDate AS DATE) >= <cfqueryparam value="#dateFormat(leaderboardStartDate, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+            AND CAST(s.saleDate AS DATE) <= <cfqueryparam value="#dateFormat(leaderboardEndDate, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+        </cfif>
         GROUP BY e.EID, e.firstName, e.lastName
         ORDER BY hourlySalesRate DESC
     </cfquery>
     
     <!--- Get this week's sales by day --->
-    <cfset startOfWeek = dateAdd("d", -(dayOfWeek(now()) - 2), now())>
-    <cfif dayOfWeek(startOfWeek) EQ 1>
-        <cfset startOfWeek = dateAdd("d", -6, startOfWeek)>
-    </cfif>
-    <cfset endOfWeek = dateAdd("d", 6, startOfWeek)>
-    
     <cfquery name="weeklySales" datasource="calicoknotts_db">
         SELECT 
             CAST(saleDate AS DATE) as saleDay,
@@ -89,6 +119,24 @@
         AND CAST(saleDate AS DATE) <= <cfqueryparam value="#dateFormat(endOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
         GROUP BY CAST(saleDate AS DATE)
         ORDER BY CAST(saleDate AS DATE)
+    </cfquery>
+    
+    <!--- Get detailed sales data for each day of the week --->
+    <cfquery name="weeklyDetailedSales" datasource="calicoknotts_db">
+        SELECT 
+            saleID,
+            EID,
+            firstName,
+            lastName,
+            saleDate,
+            hours,
+            saleAmount,
+            notes,
+            CAST(saleDate AS DATE) as saleDay
+        FROM employeeSales 
+        WHERE CAST(saleDate AS DATE) >= <cfqueryparam value="#dateFormat(startOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+        AND CAST(saleDate AS DATE) <= <cfqueryparam value="#dateFormat(endOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+        ORDER BY CAST(saleDate AS DATE), saleDate
     </cfquery>
     
     <!--- Create array for days of the week --->
@@ -104,7 +152,8 @@
             "dayName" = weekDays[i],
             "date" = currentDay,
             "total" = 0,
-            "count" = 0
+            "count" = 0,
+            "sales" = arrayNew(1)
         }>
     </cfloop>
     
@@ -118,15 +167,38 @@
         </cfif>
     </cfloop>
     
+    <!--- Populate detailed sales entries for each day --->
+    <cfloop query="weeklyDetailedSales">
+        <cfset dayKey = dateFormat(weeklyDetailedSales.saleDay, "yyyy-mm-dd")>
+        <cfif structKeyExists(dailySales, dayKey)>
+            <cfset saleEntry = {
+                "saleID" = weeklyDetailedSales.saleID,
+                "EID" = weeklyDetailedSales.EID,
+                "firstName" = weeklyDetailedSales.firstName,
+                "lastName" = weeklyDetailedSales.lastName,
+                "saleDate" = weeklyDetailedSales.saleDate,
+                "hours" = weeklyDetailedSales.hours,
+                "saleAmount" = weeklyDetailedSales.saleAmount,
+                "notes" = weeklyDetailedSales.notes
+            }>
+            <cfset arrayAppend(dailySales[dayKey].sales, saleEntry)>
+        </cfif>
+    </cfloop>
+    
     <cfcatch type="any">
         <cfset todaysSales = queryNew("saleID,EID,firstName,lastName,saleDate,hours,saleAmount,notes")>
         <cfset employeeStats = queryNew("EID,firstName,lastName,totalSales,totalHours,hourlySalesRate")>
         <cfset weeklySales = queryNew("saleDay,dayTotal,saleCount")>
+        <cfset weeklyDetailedSales = queryNew("saleID,EID,firstName,lastName,saleDate,hours,saleAmount,notes,saleDay")>
         <cfset todaysTotal = 0>
         <cfset weeklyTotal = 0>
         <cfset dailySales = structNew()>
         <cfset startOfWeek = now()>
         <cfset endOfWeek = now()>
+        <cfset leaderboardPeriod = "week">
+        <cfset leaderboardTitle = "This Week">
+        <cfset leaderboardStartDate = now()>
+        <cfset leaderboardEndDate = now()>
         <!--- Initialize empty daily sales for error case --->
         <cfset weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]>
         <cfloop from="1" to="7" index="i">
@@ -136,7 +208,8 @@
                 "dayName" = weekDays[i],
                 "date" = currentDay,
                 "total" = 0,
-                "count" = 0
+                "count" = 0,
+                "sales" = arrayNew(1)
             }>
         </cfloop>
     </cfcatch>
@@ -194,6 +267,24 @@
         .today-highlight {
             border-color: #007bff !important;
             background-color: #f8f9ff !important;
+        }
+        .sales-detail {
+            font-size: 0.8rem;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        .sale-item {
+            background: rgba(255,255,255,0.7);
+            border-radius: 3px;
+            padding: 2px 5px;
+            margin: 1px 0;
+            border-left: 2px solid #28a745;
+        }
+        .leaderboard-filter {
+            margin-bottom: 1rem;
+        }
+        .filter-btn {
+            margin-right: 0.5rem;
         }
     </style>
 </head>
@@ -317,9 +408,23 @@
                                             <h5 class="mb-1 <cfif isToday>text-primary<cfelse>text-success</cfif>">
                                                 $<cfoutput>#numberFormat(dayData.total, "0.00")#</cfoutput>
                                             </h5>
-                                            <small class="text-muted">
+                                            <small class="text-muted d-block mb-2">
                                                 <cfoutput>#dayData.count#</cfoutput> sales
                                             </small>
+                                            
+                                            <!--- Detailed sales list --->
+                                            <cfif arrayLen(dayData.sales) GT 0>
+                                                <div class="sales-detail">
+                                                    <cfloop array="#dayData.sales#" index="sale">
+                                                        <div class="sale-item">
+                                                            <strong><cfoutput>#sale.firstName#</cfoutput></strong><br>
+                                                            <small>$<cfoutput>#numberFormat(sale.saleAmount, "0.00")#</cfoutput></small>
+                                                        </div>
+                                                    </cfloop>
+                                                </div>
+                                            <cfelse>
+                                                <small class="text-muted">No sales</small>
+                                            </cfif>
                                         </div>
                                     </div>
                                 </div>
@@ -366,11 +471,21 @@
                         <h5 class="mb-0">
                             <i class="bi bi-trophy"></i> Employee Leaderboard
                         </h5>
-                        <small class="text-muted">Ranked by hourly sales rate</small>
+                        <small class="text-muted">
+                            <cfoutput>#leaderboardTitle#</cfoutput> - Ranked by hourly sales rate
+                        </small>
+                        
+                        <!--- Time period filter buttons --->
+                        <div class="leaderboard-filter mt-2">
+                            <a href="?period=week" class="btn btn-sm <cfif leaderboardPeriod EQ 'week'>btn-primary<cfelse>btn-outline-primary</cfif> filter-btn">This Week</a>
+                            <a href="?period=month" class="btn btn-sm <cfif leaderboardPeriod EQ 'month'>btn-primary<cfelse>btn-outline-primary</cfif> filter-btn">This Month</a>
+                            <a href="?period=alltime" class="btn btn-sm <cfif leaderboardPeriod EQ 'alltime'>btn-primary<cfelse>btn-outline-primary</cfif> filter-btn">All Time</a>
+                        </div>
                     </div>
                     <div class="card-body">
                         <cfif employeeStats.recordCount GT 0>
-                            <cfloop query="employeeStats">
+                            <cfset displayLimit = 10>
+                            <cfloop query="employeeStats" endrow="#displayLimit#">
                                 <div class="leaderboard-item">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
@@ -389,8 +504,11 @@
                                     </div>
                                 </div>
                             </cfloop>
+                            <cfif employeeStats.recordCount GT displayLimit>
+                                <small class="text-muted">Showing top <cfoutput>#displayLimit#</cfoutput> of <cfoutput>#employeeStats.recordCount#</cfoutput> employees</small>
+                            </cfif>
                         <cfelse>
-                            <p class="text-muted">No employee data available</p>
+                            <p class="text-muted">No employee data available for <cfoutput>#lCase(leaderboardTitle)#</cfoutput></p>
                         </cfif>
                     </div>
                 </div>

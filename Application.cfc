@@ -30,6 +30,7 @@ component {
     // Error handling
     this.errorTemplate = expandPath("./error.cfm");
     this.missingTemplate = expandPath("./error.cfm");
+    this.siteWideErrorHandler = expandPath("./error.cfm");
     
     // Application initialization
     public boolean function onApplicationStart() {
@@ -92,8 +93,22 @@ component {
         
         // In production, redirect to error page
         if (!application.settings.enableDebug) {
-            location(url="/error.cfm?type=general", addToken=false);
+            location(url="error.cfm?type=general", addToken=false);
         }
+    }
+    
+    // Missing template handler
+    public boolean function onMissingTemplate(targetPage) {
+        // Log the missing template
+        writeLog(
+            text = "Missing template requested: #targetPage#",
+            type = "error", 
+            file = "calicoknotts_errors"
+        );
+        
+        // Redirect to 404 error page
+        location(url="error.cfm?type=404", addToken=false);
+        return false;
     }
     
     // Session end
