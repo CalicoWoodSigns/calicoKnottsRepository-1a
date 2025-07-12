@@ -1,0 +1,19 @@
+# ColdFusion Builder Project Files
+.metadata/
+.settings/
+.project
+.cfmlsettings
+
+# ColdFusion temp files
+*.class
+WEB-INF/cfclasses/
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# Environment files
+.env
+
+# Log files
+*.log
