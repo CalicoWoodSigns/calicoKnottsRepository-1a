@@ -37,7 +37,6 @@
             <a class="navbar-brand" href="/">Calico Knotts Data Management</a>
             <div class="navbar-nav ms-auto">
                 <a class="nav-link" href="/">Home</a>
-                <a class="nav-link" href="test_database.cfm">Test DB</a>
             </div>
         </div>
     </nav>

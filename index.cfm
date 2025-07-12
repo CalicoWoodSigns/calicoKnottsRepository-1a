@@ -1,3 +1,6 @@
+<!--- Disable debug output for this page --->
+<cfsetting showdebugoutput="false">
+
 <!--- Handle Login --->
 <cfset isLoggedIn = false>
 <cfset loggedInUser = "">
@@ -5,7 +8,7 @@
 <cfif structKeyExists(form, "action") AND form.action EQ "login">
     <cftry>
         <cfquery name="checkUser" datasource="calicoknotts_db">
-            SELECT EID, firstName, lastName, userName
+            SELECT EID, firstName, lastName, userName, accessLevel
             FROM employeeInfo 
             WHERE userName = <cfqueryparam value="#form.username#" cfsqltype="cf_sql_varchar">
             AND password = <cfqueryparam value="#form.password#" cfsqltype="cf_sql_varchar">
@@ -16,6 +19,7 @@
             <cfset session.userName = checkUser.userName>
             <cfset session.userFirstName = checkUser.firstName>
             <cfset session.userLastName = checkUser.lastName>
+            <cfset session.accessLevel = checkUser.accessLevel>
             <cfset session.isLoggedIn = true>
         <cfelse>
             <cfset loginError = "Invalid username or password">
@@ -68,10 +72,73 @@
         ORDER BY hourlySalesRate DESC
     </cfquery>
     
+    <!--- Get this week's sales by day --->
+    <cfset startOfWeek = dateAdd("d", -(dayOfWeek(now()) - 2), now())>
+    <cfif dayOfWeek(startOfWeek) EQ 1>
+        <cfset startOfWeek = dateAdd("d", -6, startOfWeek)>
+    </cfif>
+    <cfset endOfWeek = dateAdd("d", 6, startOfWeek)>
+    
+    <cfquery name="weeklySales" datasource="calicoknotts_db">
+        SELECT 
+            CAST(saleDate AS DATE) as saleDay,
+            SUM(saleAmount) as dayTotal,
+            COUNT(*) as saleCount
+        FROM employeeSales 
+        WHERE CAST(saleDate AS DATE) >= <cfqueryparam value="#dateFormat(startOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+        AND CAST(saleDate AS DATE) <= <cfqueryparam value="#dateFormat(endOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+        GROUP BY CAST(saleDate AS DATE)
+        ORDER BY CAST(saleDate AS DATE)
+    </cfquery>
+    
+    <!--- Create array for days of the week --->
+    <cfset weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]>
+    <cfset dailySales = structNew()>
+    <cfset weeklyTotal = 0>
+    
+    <!--- Initialize daily sales structure --->
+    <cfloop from="1" to="7" index="i">
+        <cfset currentDay = dateAdd("d", i-1, startOfWeek)>
+        <cfset dayKey = dateFormat(currentDay, "yyyy-mm-dd")>
+        <cfset dailySales[dayKey] = {
+            "dayName" = weekDays[i],
+            "date" = currentDay,
+            "total" = 0,
+            "count" = 0
+        }>
+    </cfloop>
+    
+    <!--- Populate with actual sales data --->
+    <cfloop query="weeklySales">
+        <cfset dayKey = dateFormat(weeklySales.saleDay, "yyyy-mm-dd")>
+        <cfif structKeyExists(dailySales, dayKey)>
+            <cfset dailySales[dayKey].total = weeklySales.dayTotal>
+            <cfset dailySales[dayKey].count = weeklySales.saleCount>
+            <cfset weeklyTotal = weeklyTotal + weeklySales.dayTotal>
+        </cfif>
+    </cfloop>
+    
     <cfcatch type="any">
         <cfset todaysSales = queryNew("saleID,EID,firstName,lastName,saleDate,hours,saleAmount,notes")>
         <cfset employeeStats = queryNew("EID,firstName,lastName,totalSales,totalHours,hourlySalesRate")>
+        <cfset weeklySales = queryNew("saleDay,dayTotal,saleCount")>
         <cfset todaysTotal = 0>
+        <cfset weeklyTotal = 0>
+        <cfset dailySales = structNew()>
+        <cfset startOfWeek = now()>
+        <cfset endOfWeek = now()>
+        <!--- Initialize empty daily sales for error case --->
+        <cfset weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]>
+        <cfloop from="1" to="7" index="i">
+            <cfset currentDay = dateAdd("d", i-1, startOfWeek)>
+            <cfset dayKey = dateFormat(currentDay, "yyyy-mm-dd")>
+            <cfset dailySales[dayKey] = {
+                "dayName" = weekDays[i],
+                "date" = currentDay,
+                "total" = 0,
+                "count" = 0
+            }>
+        </cfloop>
     </cfcatch>
 </cftry>
 
@@ -116,9 +183,25 @@
             border-radius: 0.5rem;
             padding: 1.5rem;
         }
+        .weekly-day-card {
+            transition: transform 0.2s;
+            border: 1px solid #dee2e6;
+        }
+        .weekly-day-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .today-highlight {
+            border-color: #007bff !important;
+            background-color: #f8f9ff !important;
+        }
     </style>
 </head>
 <body>
+    <!--- Include Navigation Bar --->
+    <cfset currentPage = "home">
+    <cfinclude template="includes/navbar.cfm">
+    
     <!-- Header -->
     <div class="dashboard-header">
         <div class="container">
@@ -201,6 +284,79 @@
             </div>
         </div>
 
+        <!-- Weekly Sales Row -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-calendar-week"></i> This Week's Sales
+                        </h5>
+                        <small class="text-muted">
+                            Week of <cfoutput>#dateFormat(startOfWeek, "mmmm d")#</cfoutput> - <cfoutput>#dateFormat(endOfWeek, "mmmm d, yyyy")#</cfoutput>
+                        </small>
+                    </div>
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <cfloop from="1" to="7" index="i">
+                                <cfset currentDay = dateAdd("d", i-1, startOfWeek)>
+                                <cfset dayKey = dateFormat(currentDay, "yyyy-mm-dd")>
+                                <cfset dayData = dailySales[dayKey]>
+                                <cfset isToday = dateFormat(currentDay, "yyyy-mm-dd") EQ dateFormat(now(), "yyyy-mm-dd")>
+                                
+                                <div class="col">
+                                    <div class="card weekly-day-card h-100 <cfif isToday>today-highlight</cfif>">
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title mb-1 <cfif isToday>text-primary fw-bold</cfif>">
+                                                <cfoutput>#dayData.dayName#</cfoutput>
+                                                <cfif isToday><br><small class="badge bg-primary">Today</small></cfif>
+                                            </h6>
+                                            <small class="text-muted d-block mb-2">
+                                                <cfoutput>#dateFormat(currentDay, "m/d")#</cfoutput>
+                                            </small>
+                                            <h5 class="mb-1 <cfif isToday>text-primary<cfelse>text-success</cfif>">
+                                                $<cfoutput>#numberFormat(dayData.total, "0.00")#</cfoutput>
+                                            </h5>
+                                            <small class="text-muted">
+                                                <cfoutput>#dayData.count#</cfoutput> sales
+                                            </small>
+                                        </div>
+                                    </div>
+                                </div>
+                            </cfloop>
+                            
+                            <!-- Weekly Total -->
+                            <div class="col-md-12 mt-3">
+                                <div class="card bg-primary text-white">
+                                    <div class="card-body text-center p-3">
+                                        <h5 class="card-title mb-0">
+                                            <i class="bi bi-calculator"></i> Weekly Total
+                                        </h5>
+                                        <h2 class="mb-0">$<cfoutput>#numberFormat(weeklyTotal, "0.00")#</cfoutput></h2>
+                                        <small>
+                                            <cfloop query="weeklySales">
+                                                <cfset weeklyCount = 0>
+                                                <cfloop query="weeklySales">
+                                                    <cfset weeklyCount = weeklyCount + weeklySales.saleCount>
+                                                </cfloop>
+                                            </cfloop>
+                                            <cfset totalSalesCount = 0>
+                                            <cfloop from="1" to="7" index="i">
+                                                <cfset currentDay = dateAdd("d", i-1, startOfWeek)>
+                                                <cfset dayKey = dateFormat(currentDay, "yyyy-mm-dd")>
+                                                <cfset totalSalesCount = totalSalesCount + dailySales[dayKey].count>
+                                            </cfloop>
+                                            <cfoutput>#totalSalesCount#</cfoutput> total sales this week
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Main Content Row -->
         <div class="row">
             <!-- Employee Leaderboard -->
@@ -218,7 +374,7 @@
                                 <div class="leaderboard-item">
                                     <div class="d-flex justify-content-between align-items-center">
                                         <div>
-                                            <strong><cfoutput>#employeeStats.firstName# #employeeStats.lastName#</cfoutput></strong>
+                                            <strong><a href="employee_profile.cfm?emp=<cfoutput>#employeeStats.EID#</cfoutput>" class="text-decoration-none"><cfoutput>#employeeStats.firstName# #employeeStats.lastName#</cfoutput></a></strong>
                                             <br>
                                             <small class="text-muted">
                                                 Total: $<cfoutput>#numberFormat(employeeStats.totalSales, "0.00")#</cfoutput> 
@@ -263,7 +419,7 @@
                                     <tbody>
                                         <cfloop query="todaysSales">
                                             <tr>
-                                                <td><cfoutput>#todaysSales.firstName# #todaysSales.lastName#</cfoutput></td>
+                                                <td><a href="employee_profile.cfm?emp=<cfoutput>#todaysSales.EID#</cfoutput>" class="text-decoration-none"><cfoutput>#todaysSales.firstName# #todaysSales.lastName#</cfoutput></a></td>
                                                 <td><cfoutput>#timeFormat(todaysSales.saleDate, "h:mm tt")#</cfoutput></td>
                                                 <td>$<cfoutput>#numberFormat(todaysSales.saleAmount, "0.00")#</cfoutput></td>
                                                 <td><cfoutput>#todaysSales.hours#</cfoutput></td>
@@ -277,18 +433,6 @@
                         </cfif>
                     </div>
                 </div>
-            </div>
-        </div>
-
-        <!-- Navigation Links -->
-        <div class="row mt-4">
-            <div class="col-12 text-center">
-                <a href="CFP/data_management.cfm" class="btn btn-primary me-2">
-                    <i class="bi bi-speedometer2"></i> Full Data Management
-                </a>
-                <a href="CFP/test_database.cfm" class="btn btn-outline-secondary">
-                    <i class="bi bi-database"></i> Test Database
-                </a>
             </div>
         </div>
     </div>

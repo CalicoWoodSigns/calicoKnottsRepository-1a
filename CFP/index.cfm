@@ -19,7 +19,6 @@
                         </p>
                         
                         <div class="mt-4">
-                            <a href="test_database.cfm" class="btn btn-primary">Test Database Connection</a>
                             <a href="test.cfm" class="btn btn-outline-secondary">View Test Page</a>
                         </div>
                     </div>
