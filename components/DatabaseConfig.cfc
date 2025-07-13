@@ -80,7 +80,7 @@
                          datasource="#variables.datasourceName#"
                          username="#variables.azureConfig.username#"
                          password="#variables.azureConfig.password#">
-                    #arguments.sql#
+                    #preserveSingleQuotes(arguments.sql)#
                 </cfquery>
                 
             <cfelse>
@@ -99,6 +99,52 @@
             <cfcatch type="any">
                 <!--- Log error and rethrow --->
                 <cflog file="database_config" text="Database connection error: #cfcatch.message# - #cfcatch.detail#" type="error">
+                <cfrethrow>
+            </cfcatch>
+        </cftry>
+        
+        <cfreturn result>
+    </cffunction>
+    
+    <cffunction name="executeParameterizedQuery" access="public" returntype="query" hint="Execute a parameterized query">
+        <cfargument name="sql" type="string" required="true">
+        <cfargument name="params" type="struct" required="false" default="#structNew()#">
+        
+        <cfset var result = "">
+        
+        <cftry>
+            <cfif variables.isRemote>
+                <!--- Use DSN on remote server with credentials --->
+                <cfquery name="result" 
+                         datasource="#variables.datasourceName#"
+                         username="#variables.azureConfig.username#"
+                         password="#variables.azureConfig.password#">
+                    #preserveSingleQuotes(arguments.sql)#
+                    <!--- Add parameters --->
+                    <cfloop collection="#arguments.params#" item="paramName">
+                        <cfqueryparam value="#arguments.params[paramName]#" cfsqltype="cf_sql_varchar">
+                    </cfloop>
+                </cfquery>
+                
+            <cfelse>
+                <!--- Use Query object for local development --->
+                <cfset var qryService = new Query()>
+                <cfset qryService.setAttributes({
+                    driver = "MSSQLServer",
+                    url = "jdbc:sqlserver://#variables.azureConfig.server#:#variables.azureConfig.port#;databaseName=#variables.azureConfig.database#;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30",
+                    username = variables.azureConfig.username,
+                    password = variables.azureConfig.password
+                })>
+                <cfset qryService.setSQL(arguments.sql)>
+                <!--- Add parameters to Query object --->
+                <cfloop collection="#arguments.params#" item="paramName">
+                    <cfset qryService.addParam(name=paramName, value=arguments.params[paramName], cfsqltype="cf_sql_varchar")>
+                </cfloop>
+                <cfset result = qryService.execute().getResult()>
+            </cfif>
+            
+            <cfcatch type="any">
+                <cflog file="database_config" text="Parameterized query error: #cfcatch.message# - #cfcatch.detail#" type="error">
                 <cfrethrow>
             </cfcatch>
         </cftry>

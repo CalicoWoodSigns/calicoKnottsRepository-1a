@@ -1,18 +1,33 @@
 <!--- Disable debug output for this page --->
 <cfsetting showdebugoutput="false">
 
+<!--- Initialize Database Configuration --->
+<cfset dbConfig = createObject("component", "components.DatabaseConfig").init()>
+<cfset dbInfo = dbConfig.getEnvironmentInfo()>
+
 <!--- Handle Login --->
 <cfset isLoggedIn = false>
 <cfset loggedInUser = "">
 
 <cfif structKeyExists(form, "action") AND form.action EQ "login">
     <cftry>
-        <cfquery name="checkUser" datasource="calicoknotts_db">
-            SELECT EID, firstName, lastName, userName, accessLevel
-            FROM employeeInfo 
-            WHERE userName = <cfqueryparam value="#form.username#" cfsqltype="cf_sql_varchar">
-            AND password = <cfqueryparam value="#form.password#" cfsqltype="cf_sql_varchar">
-        </cfquery>
+        <cfif dbInfo.isRemote>
+            <cfquery name="checkUser" 
+                     datasource="#dbInfo.datasourceName#"
+                     username="#dbConfig.getAzureConfig().username#"
+                     password="#dbConfig.getAzureConfig().password#">
+                SELECT EID, firstName, lastName, userName, accessLevel
+                FROM employeeInfo 
+                WHERE userName = <cfqueryparam value="#form.username#" cfsqltype="cf_sql_varchar">
+                AND password = <cfqueryparam value="#form.password#" cfsqltype="cf_sql_varchar">
+            </cfquery>
+        <cfelse>
+            <cfset checkUser = dbConfig.executeQuery("
+                SELECT EID, firstName, lastName, userName, accessLevel
+                FROM employeeInfo 
+                WHERE userName = '" & form.username & "' AND password = '" & form.password & "'
+            ")>
+        </cfif>
         
         <cfif checkUser.recordCount GT 0>
             <cfset session.userID = checkUser.EID>
@@ -40,12 +55,24 @@
 <!--- Get today's data --->
 <cftry>
     <!--- Today's sales --->
-    <cfquery name="todaysSales" datasource="calicoknotts_db">
-        SELECT saleID, EID, firstName, lastName, saleDate, hours, saleAmount, notes
-        FROM employeeSales 
-        WHERE CAST(saleDate AS DATE) = CAST(GETDATE() AS DATE)
-        ORDER BY saleDate DESC
-    </cfquery>
+    <cfif dbInfo.isRemote>
+        <cfquery name="todaysSales" 
+                 datasource="#dbInfo.datasourceName#"
+                 username="#dbConfig.getAzureConfig().username#"
+                 password="#dbConfig.getAzureConfig().password#">
+            SELECT saleID, EID, firstName, lastName, saleDate, hours, saleAmount, notes
+            FROM employeeSales 
+            WHERE CAST(saleDate AS DATE) = CAST(GETDATE() AS DATE)
+            ORDER BY saleDate DESC
+        </cfquery>
+    <cfelse>
+        <cfset todaysSales = dbConfig.executeQuery("
+            SELECT saleID, EID, firstName, lastName, saleDate, hours, saleAmount, notes
+            FROM employeeSales 
+            WHERE CAST(saleDate AS DATE) = CAST(GETDATE() AS DATE)
+            ORDER BY saleDate DESC
+        ")>
+    </cfif>
     
     <!--- Calculate today's total --->
     <cfset todaysTotal = 0>
@@ -86,58 +113,121 @@
     </cfswitch>
     
     <!--- Employee leaderboard with time period filter --->
-    <cfquery name="employeeStats" datasource="calicoknotts_db">
-        SELECT 
-            e.EID,
-            e.firstName,
-            e.lastName,
-            COALESCE(SUM(s.saleAmount), 0) as totalSales,
-            COALESCE(SUM(s.hours), 0) as totalHours,
-            CASE 
-                WHEN COALESCE(SUM(s.hours), 0) > 0 
-                THEN COALESCE(SUM(s.saleAmount), 0) / COALESCE(SUM(s.hours), 1)
-                ELSE 0 
-            END as hourlySalesRate
-        FROM employeeInfo e
-        LEFT JOIN employeeSales s ON e.EID = s.EID
-        <cfif leaderboardPeriod NEQ "alltime">
-            AND CAST(s.saleDate AS DATE) >= <cfqueryparam value="#dateFormat(leaderboardStartDate, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
-            AND CAST(s.saleDate AS DATE) <= <cfqueryparam value="#dateFormat(leaderboardEndDate, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
-        </cfif>
-        GROUP BY e.EID, e.firstName, e.lastName
-        ORDER BY hourlySalesRate DESC
-    </cfquery>
+    <cfif dbInfo.isRemote>
+        <cfquery name="employeeStats" 
+                 datasource="#dbInfo.datasourceName#"
+                 username="#dbConfig.getAzureConfig().username#"
+                 password="#dbConfig.getAzureConfig().password#">
+            SELECT 
+                e.EID,
+                e.firstName,
+                e.lastName,
+                COALESCE(SUM(s.saleAmount), 0) as totalSales,
+                COALESCE(SUM(s.hours), 0) as totalHours,
+                CASE 
+                    WHEN COALESCE(SUM(s.hours), 0) > 0 
+                    THEN COALESCE(SUM(s.saleAmount), 0) / COALESCE(SUM(s.hours), 1)
+                    ELSE 0 
+                END as hourlySalesRate
+            FROM employeeInfo e
+            LEFT JOIN employeeSales s ON e.EID = s.EID
+            <cfif leaderboardPeriod NEQ "alltime">
+                AND CAST(s.saleDate AS DATE) >= <cfqueryparam value="#dateFormat(leaderboardStartDate, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+                AND CAST(s.saleDate AS DATE) <= <cfqueryparam value="#dateFormat(leaderboardEndDate, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+            </cfif>
+            GROUP BY e.EID, e.firstName, e.lastName
+            ORDER BY hourlySalesRate DESC
+        </cfquery>
+    <cfelse>
+        <cfset employeeStats = dbConfig.executeQuery("
+            SELECT 
+                e.EID,
+                e.firstName,
+                e.lastName,
+                COALESCE(SUM(s.saleAmount), 0) as totalSales,
+                COALESCE(SUM(s.hours), 0) as totalHours,
+                CASE 
+                    WHEN COALESCE(SUM(s.hours), 0) > 0 
+                    THEN COALESCE(SUM(s.saleAmount), 0) / COALESCE(SUM(s.hours), 1)
+                    ELSE 0 
+                END as hourlySalesRate
+            FROM employeeInfo e
+            LEFT JOIN employeeSales s ON e.EID = s.EID
+            " & (leaderboardPeriod NEQ "alltime" ? "AND CAST(s.saleDate AS DATE) >= '" & dateFormat(leaderboardStartDate, 'yyyy-mm-dd') & "' AND CAST(s.saleDate AS DATE) <= '" & dateFormat(leaderboardEndDate, 'yyyy-mm-dd') & "'" : "") & "
+            GROUP BY e.EID, e.firstName, e.lastName
+            ORDER BY hourlySalesRate DESC
+        ")>
+    </cfif>
     
     <!--- Get this week's sales by day --->
-    <cfquery name="weeklySales" datasource="calicoknotts_db">
-        SELECT 
-            CAST(saleDate AS DATE) as saleDay,
-            SUM(saleAmount) as dayTotal,
-            COUNT(*) as saleCount
-        FROM employeeSales 
-        WHERE CAST(saleDate AS DATE) >= <cfqueryparam value="#dateFormat(startOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
-        AND CAST(saleDate AS DATE) <= <cfqueryparam value="#dateFormat(endOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
-        GROUP BY CAST(saleDate AS DATE)
-        ORDER BY CAST(saleDate AS DATE)
-    </cfquery>
+    <cfif dbInfo.isRemote>
+        <cfquery name="weeklySales" 
+                 datasource="#dbInfo.datasourceName#"
+                 username="#dbConfig.getAzureConfig().username#"
+                 password="#dbConfig.getAzureConfig().password#">
+            SELECT 
+                CAST(saleDate AS DATE) as saleDay,
+                SUM(saleAmount) as dayTotal,
+                COUNT(*) as saleCount
+            FROM employeeSales 
+            WHERE CAST(saleDate AS DATE) >= <cfqueryparam value="#dateFormat(startOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+            AND CAST(saleDate AS DATE) <= <cfqueryparam value="#dateFormat(endOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+            GROUP BY CAST(saleDate AS DATE)
+            ORDER BY CAST(saleDate AS DATE)
+        </cfquery>
+    <cfelse>
+        <cfset weeklySales = dbConfig.executeQuery("
+            SELECT 
+                CAST(saleDate AS DATE) as saleDay,
+                SUM(saleAmount) as dayTotal,
+                COUNT(*) as saleCount
+            FROM employeeSales 
+            WHERE CAST(saleDate AS DATE) >= '" & dateFormat(startOfWeek, 'yyyy-mm-dd') & "'
+            AND CAST(saleDate AS DATE) <= '" & dateFormat(endOfWeek, 'yyyy-mm-dd') & "'
+            GROUP BY CAST(saleDate AS DATE)
+            ORDER BY CAST(saleDate AS DATE)
+        ")>
+    </cfif>
     
     <!--- Get detailed sales data for each day of the week --->
-    <cfquery name="weeklyDetailedSales" datasource="calicoknotts_db">
-        SELECT 
-            saleID,
-            EID,
-            firstName,
-            lastName,
-            saleDate,
-            hours,
-            saleAmount,
-            notes,
-            CAST(saleDate AS DATE) as saleDay
-        FROM employeeSales 
-        WHERE CAST(saleDate AS DATE) >= <cfqueryparam value="#dateFormat(startOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
-        AND CAST(saleDate AS DATE) <= <cfqueryparam value="#dateFormat(endOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
-        ORDER BY CAST(saleDate AS DATE), saleDate
-    </cfquery>
+    <cfif dbInfo.isRemote>
+        <cfquery name="weeklyDetailedSales" 
+                 datasource="#dbInfo.datasourceName#"
+                 username="#dbConfig.getAzureConfig().username#"
+                 password="#dbConfig.getAzureConfig().password#">
+            SELECT 
+                saleID,
+                EID,
+                firstName,
+                lastName,
+                saleDate,
+                hours,
+                saleAmount,
+                notes,
+                CAST(saleDate AS DATE) as saleDay
+            FROM employeeSales 
+            WHERE CAST(saleDate AS DATE) >= <cfqueryparam value="#dateFormat(startOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+            AND CAST(saleDate AS DATE) <= <cfqueryparam value="#dateFormat(endOfWeek, 'yyyy-mm-dd')#" cfsqltype="cf_sql_date">
+            ORDER BY CAST(saleDate AS DATE), saleDate
+        </cfquery>
+    <cfelse>
+        <cfset weeklyDetailedSales = dbConfig.executeQuery("
+            SELECT 
+                saleID,
+                EID,
+                firstName,
+                lastName,
+                saleDate,
+                hours,
+                saleAmount,
+                notes,
+                CAST(saleDate AS DATE) as saleDay
+            FROM employeeSales 
+            WHERE CAST(saleDate AS DATE) >= '" & dateFormat(startOfWeek, 'yyyy-mm-dd') & "'
+            AND CAST(saleDate AS DATE) <= '" & dateFormat(endOfWeek, 'yyyy-mm-dd') & "'
+            ORDER BY CAST(saleDate AS DATE), saleDate
+        ")>
+    </cfif>
     
     <!--- Create array for days of the week --->
     <cfset weekDays = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]>
