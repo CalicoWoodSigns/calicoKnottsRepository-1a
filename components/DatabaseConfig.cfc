@@ -82,13 +82,15 @@
                 
             <cfelse>
                 <!--- Use direct connection on local --->
-                <cfquery name="result" 
-                    driver="MSSQLServer"
-                    url="jdbc:sqlserver://#variables.azureConfig.server#:#variables.azureConfig.port#;databaseName=#variables.azureConfig.database#;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30"
-                    username="#variables.azureConfig.username#"
-                    password="#variables.azureConfig.password#">
-                    #arguments.sql#
-                </cfquery>
+                <cfset var qryService = new Query()>
+                <cfset qryService.setAttributes({
+                    driver = "MSSQLServer",
+                    url = "jdbc:sqlserver://#variables.azureConfig.server#:#variables.azureConfig.port#;databaseName=#variables.azureConfig.database#;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30",
+                    username = variables.azureConfig.username,
+                    password = variables.azureConfig.password
+                })>
+                <cfset qryService.setSQL(arguments.sql)>
+                <cfset result = qryService.execute().getResult()>
             </cfif>
             
             <cfcatch type="any">
