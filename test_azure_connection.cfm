@@ -28,26 +28,25 @@
 
                         <h5>Test Results:</h5>
                         
-                        <!--- Test 1: Direct connection with connection string --->
+                        <!--- Test 1: DSN Connection with Credentials --->
                         <div class="alert alert-info">
-                            <h6>Test 1: Direct Connection String (No Local DSN Required)</h6>
+                            <h6>Test 1: DSN Connection (calicoknotts_db_A_DSN)</h6>
                             <cftry>
                                 <cfquery name="testConnection1" 
-                                    driver="MSSQLServer"
-                                    url="jdbc:sqlserver://calicoknottsserver.database.windows.net:1433;databaseName=calicoknotts_db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30"
+                                    datasource="calicoknotts_db_A_DSN"
                                     username="Rich"
                                     password="Tripp@2005">
                                     SELECT 1 as test_value, GETDATE() as current_time, @@VERSION as server_version
                                 </cfquery>
                                 
                                 <div class="alert alert-success">
-                                    ✅ <strong>SUCCESS!</strong> Connected directly to Azure SQL without local DSN!<br>
+                                    ✅ <strong>SUCCESS!</strong> Connected using DSN with credentials!<br>
                                     <small>Test Value: <cfoutput>#testConnection1.test_value#</cfoutput> | Server Time: <cfoutput>#testConnection1.current_time#</cfoutput></small>
                                 </div>
                                 
                                 <cfcatch type="any">
                                     <div class="alert alert-danger">
-                                        ❌ <strong>FAILED!</strong> Azure Connection Error<br>
+                                        ❌ <strong>FAILED!</strong> DSN Connection Error<br>
                                         <small><strong>Error:</strong> <cfoutput>#cfcatch.message#</cfoutput></small><br>
                                         <small><strong>Detail:</strong> <cfoutput>#cfcatch.detail#</cfoutput></small>
                                     </div>
@@ -80,8 +79,7 @@
                         <!--- Test 3: Check database tables if connection works --->
                         <cftry>
                             <cfquery name="checkTables" 
-                                driver="MSSQLServer"
-                                url="jdbc:sqlserver://calicoknottsserver.database.windows.net:1433;databaseName=calicoknotts_db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30"
+                                datasource="calicoknotts_db_A_DSN"
                                 username="Rich"
                                 password="Tripp@2005">
                                 SELECT TABLE_NAME 
@@ -104,16 +102,14 @@
                             
                             <!--- Test 4: Check specific application tables --->
                             <cfquery name="checkEmployeeInfo" 
-                                driver="MSSQLServer"
-                                url="jdbc:sqlserver://calicoknottsserver.database.windows.net:1433;databaseName=calicoknotts_db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30"
+                                datasource="calicoknotts_db_A_DSN"
                                 username="Rich"
                                 password="Tripp@2005">
                                 SELECT COUNT(*) as employee_count FROM employeeInfo
                             </cfquery>
                             
                             <cfquery name="checkEmployeeSales" 
-                                driver="MSSQLServer"
-                                url="jdbc:sqlserver://calicoknottsserver.database.windows.net:1433;databaseName=calicoknotts_db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30"
+                                datasource="calicoknotts_db_A_DSN"
                                 username="Rich"
                                 password="Tripp@2005">
                                 SELECT COUNT(*) as sales_count FROM employeeSales
