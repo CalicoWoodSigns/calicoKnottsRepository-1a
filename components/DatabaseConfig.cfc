@@ -75,8 +75,11 @@
         
         <cftry>
             <cfif variables.isRemote>
-                <!--- Use DSN on remote server --->
-                <cfquery name="result" datasource="#variables.datasourceName#">
+                <!--- Use DSN on remote server with credentials (DSN configured for "Login in Code") --->
+                <cfquery name="result" 
+                         datasource="#variables.datasourceName#"
+                         username="#variables.azureConfig.username#"
+                         password="#variables.azureConfig.password#">
                     #arguments.sql#
                 </cfquery>
                 

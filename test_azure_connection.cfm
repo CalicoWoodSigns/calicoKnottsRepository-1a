@@ -37,7 +37,7 @@
                                     url="jdbc:sqlserver://calicoknottsserver.database.windows.net:1433;databaseName=calicoknotts_db;encrypt=true;trustServerCertificate=false;hostNameInCertificate=*.database.windows.net;loginTimeout=30"
                                     username="Rich"
                                     password="Tripp@2005">
-                                    SELECT 1 as test_value, GETDATE() as current_time
+                                    SELECT 1 as test_value, GETDATE() as current_time, @@VERSION as server_version
                                 </cfquery>
                                 
                                 <div class="alert alert-success">
