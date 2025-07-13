@@ -39,6 +39,17 @@ component {
         application.version = "1.0";
         application.startTime = now();
         
+        // Initialize dynamic database configuration
+        try {
+            application.dbConfig = new components.DatabaseConfig();
+            application.dbConnectionTest = application.dbConfig.testConnection();
+        } catch (any e) {
+            // Log the error but don't fail the application
+            writeLog(file="application", text="Database configuration error: #e.message#", type="error");
+            application.dbConfig = "";
+            application.dbConnectionTest = {success=false, message="Database configuration failed"};
+        }
+        
         // Initialize any application-wide settings
         application.settings = {
             "enableDebug" = false,

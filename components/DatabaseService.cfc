@@ -1,188 +1,145 @@
-component displayname="Database Service" hint="Database operations and queries" {
+<cfcomponent displayname="Database Service" hint="Handles database operations using dynamic connection">
     
-    // Initialize the component
-    public function init() {
-        return this;
-    }
+    <cffunction name="init" access="public" returntype="DatabaseService" hint="Constructor">
+        <!--- Use application-scoped dbConfig if available, otherwise create new instance --->
+        <cfif structKeyExists(application, "dbConfig")>
+            <cfset variables.dbConfig = application.dbConfig>
+        <cfelse>
+            <cfset variables.dbConfig = createObject("component", "DatabaseConfig").init()>
+        </cfif>
+        <cfreturn this>
+    </cffunction>
     
-    /**
-     * Gets a database connection (if datasource is configured)
-     * @return Query service or null
-     */
-    private function getConnection() {
-        // This would be implemented based on your database setup
-        // For now, returning a placeholder
-        return null;
-    }
-    
-    /**
-     * Executes a safe query with parameter binding
-     * @param sql SQL statement
-     * @param params Query parameters
-     * @return Query result
-     */
-    public query function executeQuery(required string sql, struct params = {}) {
-        try {
-            var qry = new Query();
-            qry.setSQL(arguments.sql);
-            
-            // Add parameters
-            for (var param in arguments.params) {
-                qry.addParam(
-                    name = param,
-                    value = arguments.params[param],
-                    cfsqltype = "cf_sql_varchar" // Default type, should be dynamic
-                );
-            }
-            
-            return qry.execute().getResult();
-        } catch (any e) {
-            // Log the error
-            writeLog(
-                text = "Database error: #e.message# - SQL: #arguments.sql#",
-                type = "error",
-                file = "calicoknotts_database"
-            );
-            
-            // Return empty query
-            return queryNew("");
-        }
-    }
-    
-    /**
-     * Gets all employees from the database
-     * @return Query of employees
-     */
-    public query function getEmployees() {
-        try {
-            var qry = new Query();
-            qry.setSQL("SELECT EID, userName, firstName, lastName, password, accessLevel, address1, city, state, phone FROM employeeInfo ORDER BY lastName, firstName");
-            qry.setDatasource("calicoknotts_db");
-            return qry.execute().getResult();
-        } catch (any e) {
-            writeLog(
-                text = "Error getting employees: #e.message#",
-                type = "error",
-                file = "calicoknotts_database"
-            );
-            return queryNew("EID,userName,firstName,lastName,password,accessLevel,address1,city,state,phone");
-        }
-    }
-    
-    /**
-     * Gets all sales from the database with employee names
-     * @return Query of sales
-     */
-    public query function getSales() {
-        try {
-            var qry = new Query();
-            qry.setSQL("SELECT saleID, EID, firstName, lastName, saleDate, hours, saleAmount, notes FROM employeeSales ORDER BY saleDate DESC");
-            qry.setDatasource("calicoknotts_db");
-            return qry.execute().getResult();
-        } catch (any e) {
-            writeLog(
-                text = "Error getting sales: #e.message#",
-                type = "error",
-                file = "calicoknotts_database"
-            );
-            return queryNew("saleID,EID,firstName,lastName,saleDate,hours,saleAmount,notes");
-        }
-    }
-    
-    /**
-     * Adds a new sale record
-     * @param employeeID Employee ID
-     * @param saleAmount Sale amount
-     * @param hours Hours worked
-     * @param notes Optional notes
-     * @return Boolean success
-     */
-    public boolean function addSale(required numeric employeeID, required numeric saleAmount, required numeric hours, string notes = "") {
-        try {
-            // Get employee info first
-            var empQry = new Query();
-            empQry.setSQL("SELECT firstName, lastName FROM employeeInfo WHERE EID = ?");
-            empQry.addParam(value=arguments.employeeID, cfsqltype="cf_sql_integer");
-            empQry.setDatasource("calicoknotts_db");
-            var employee = empQry.execute().getResult();
-            
-            if (employee.recordCount eq 0) {
-                return false;
-            }
-            
-            // Insert the sale
-            var qry = new Query();
-            qry.setSQL("INSERT INTO employeeSales (EID, firstName, lastName, saleDate, hours, saleAmount, notes) VALUES (?, ?, ?, GETDATE(), ?, ?, ?)");
-            qry.addParam(value=arguments.employeeID, cfsqltype="cf_sql_integer");
-            qry.addParam(value=employee.firstName, cfsqltype="cf_sql_varchar");
-            qry.addParam(value=employee.lastName, cfsqltype="cf_sql_varchar");
-            qry.addParam(value=arguments.hours, cfsqltype="cf_sql_decimal");
-            qry.addParam(value=arguments.saleAmount, cfsqltype="cf_sql_decimal");
-            qry.addParam(value=arguments.notes, cfsqltype="cf_sql_varchar");
-            qry.setDatasource("calicoknotts_db");
-            qry.execute();
-            
-            return true;
-        } catch (any e) {
-            writeLog(
-                text = "Error adding sale: #e.message#",
-                type = "error",
-                file = "calicoknotts_database"
-            );
-            return false;
-        }
-    }
-
-    /**
-     * Gets application settings from database or config
-     * @return Struct of settings
-     */
-    public struct function getSettings() {
-        // This would typically query a settings table
-        // For now, returning default settings
-        return {
-            "siteName" = "Calico Knotts Wood Signs",
-            "siteDescription" = "Custom wood signs and crafts",
-            "contactEmail" = "info@calicoknotts.com",
-            "phone" = "(555) 123-4567",
-            "address" = "123 Workshop Lane, Craftsville, ST 12345"
-        };
-    }
-    
-    /**
-     * Sample method to get products (placeholder)
-     * @return Query of products
-     */
-    public query function getProducts() {
-        // This is a placeholder - would typically query a products table
-        var products = queryNew("id,name,price,description", "integer,varchar,decimal,varchar", [
-            [1, "Custom House Sign", 45.00, "Personalized wooden house sign"],
-            [2, "Wedding Sign", 65.00, "Beautiful wedding ceremony sign"],
-            [3, "Business Sign", 125.00, "Professional business signage"]
-        ]);
+    <cffunction name="getTodaysSales" access="public" returntype="numeric" hint="Get today's total sales">
+        <cfset var sql = "
+            SELECT ISNULL(SUM(amount), 0) as total_sales 
+            FROM sales 
+            WHERE CAST(sale_date AS DATE) = CAST(GETDATE() AS DATE)
+        ">
         
-        return products;
-    }
+        <cftry>
+            <cfset var result = variables.dbConfig.executeQuery(sql)>
+            <cfreturn result.total_sales>
+            
+            <cfcatch type="any">
+                <cflog file="database_service" text="getTodaysSales error: #cfcatch.message#" type="error">
+                <cfreturn 0>
+            </cfcatch>
+        </cftry>
+    </cffunction>
     
-    /**
-     * Sample method to get a single product by ID
-     * @param productId Product ID
-     * @return Query with single product
-     */
-    public query function getProduct(required numeric productId) {
-        var products = getProducts();
-        var result = queryNew(products.columnList);
+    <cffunction name="getEmployeeLeaderboard" access="public" returntype="query" hint="Get employee leaderboard with time filter">
+        <cfargument name="timeFilter" type="string" required="false" default="all">
         
-        for (var row = 1; row <= products.recordCount; row++) {
-            if (products.id[row] == arguments.productId) {
-                queryAddRow(result);
-                for (var col in listToArray(products.columnList)) {
-                    querySetCell(result, col, products[col][row]);
-                }
-                break;
-            }
-        }
+        <cfset var whereClause = "">
+        <cfswitch expression="#arguments.timeFilter#">
+            <cfcase value="week">
+                <cfset whereClause = "AND sale_date >= DATEADD(day, -7, GETDATE())">
+            </cfcase>
+            <cfcase value="month">
+                <cfset whereClause = "AND sale_date >= DATEADD(month, -1, GETDATE())">
+            </cfcase>
+            <cfdefaultcase>
+                <cfset whereClause = "">
+            </cfdefaultcase>
+        </cfswitch>
         
-        return result;
-    }
-}
+        <cfset var sql = "
+            SELECT 
+                e.name,
+                COUNT(s.id) as total_sales,
+                ISNULL(SUM(s.amount), 0) as total_amount
+            FROM employees e
+            LEFT JOIN sales s ON e.id = s.employee_id #whereClause#
+            GROUP BY e.id, e.name
+            ORDER BY total_amount DESC
+        ">
+        
+        <cftry>
+            <cfreturn variables.dbConfig.executeQuery(sql)>
+            
+            <cfcatch type="any">
+                <cflog file="database_service" text="getEmployeeLeaderboard error: #cfcatch.message#" type="error">
+                <!--- Return empty query on error --->
+                <cfset var emptyQuery = queryNew("name,total_sales,total_amount", "varchar,integer,decimal")>
+                <cfreturn emptyQuery>
+            </cfcatch>
+        </cftry>
+    </cffunction>
+    
+    <cffunction name="getWeeklySales" access="public" returntype="query" hint="Get detailed weekly sales breakdown">
+        <cfset var sql = "
+            SELECT 
+                DATENAME(weekday, sale_date) as day_name,
+                CAST(sale_date AS DATE) as sale_date,
+                COUNT(*) as transaction_count,
+                ISNULL(SUM(amount), 0) as daily_total
+            FROM sales 
+            WHERE sale_date >= DATEADD(day, -7, GETDATE())
+            GROUP BY CAST(sale_date AS DATE), DATENAME(weekday, sale_date), DATEPART(weekday, sale_date)
+            ORDER BY CAST(sale_date AS DATE) DESC
+        ">
+        
+        <cftry>
+            <cfreturn variables.dbConfig.executeQuery(sql)>
+            
+            <cfcatch type="any">
+                <cflog file="database_service" text="getWeeklySales error: #cfcatch.message#" type="error">
+                <!--- Return empty query on error --->
+                <cfset var emptyQuery = queryNew("day_name,sale_date,transaction_count,daily_total", "varchar,date,integer,decimal")>
+                <cfreturn emptyQuery>
+            </cfcatch>
+        </cftry>
+    </cffunction>
+    
+    <!--- Additional method to get basic stats for dashboard --->
+    <cffunction name="getDashboardStats" access="public" returntype="struct" hint="Get comprehensive dashboard statistics">
+        <cfset var stats = {
+            todaysSales = 0,
+            totalEmployees = 0,
+            weeklyTotal = 0,
+            monthlyTotal = 0
+        }>
+        
+        <cftry>
+            <!--- Today's sales --->
+            <cfset stats.todaysSales = getTodaysSales()>
+            
+            <!--- Total employees --->
+            <cfset var empQuery = variables.dbConfig.executeQuery("SELECT COUNT(*) as emp_count FROM employees")>
+            <cfset stats.totalEmployees = empQuery.emp_count>
+            
+            <!--- Weekly total --->
+            <cfset var weeklyQuery = variables.dbConfig.executeQuery("
+                SELECT ISNULL(SUM(amount), 0) as weekly_total 
+                FROM sales 
+                WHERE sale_date >= DATEADD(day, -7, GETDATE())
+            ")>
+            <cfset stats.weeklyTotal = weeklyQuery.weekly_total>
+            
+            <!--- Monthly total --->
+            <cfset var monthlyQuery = variables.dbConfig.executeQuery("
+                SELECT ISNULL(SUM(amount), 0) as monthly_total 
+                FROM sales 
+                WHERE sale_date >= DATEADD(month, -1, GETDATE())
+            ")>
+            <cfset stats.monthlyTotal = monthlyQuery.monthly_total>
+            
+            <cfcatch type="any">
+                <cflog file="database_service" text="getDashboardStats error: #cfcatch.message#" type="error">
+                <!--- Return default stats on error --->
+            </cfcatch>
+        </cftry>
+        
+        <cfreturn stats>
+    </cffunction>
+    
+    <!--- Legacy method for compatibility --->
+    <cffunction name="query" access="public" returntype="query" hint="Execute a simple query with dynamic connection">
+        <cfargument name="sql" type="string" required="true">
+        <cfargument name="params" type="struct" required="false" default="#structNew()#">
+        
+        <cfreturn variables.dbConfig.executeQuery(arguments.sql, arguments.params)>
+    </cffunction>
+    
+</cfcomponent>
