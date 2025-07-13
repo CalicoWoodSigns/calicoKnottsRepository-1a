@@ -81,10 +81,13 @@
     </cfloop>
     
     <!--- Get this week's date range (needed for leaderboard) --->
-    <cfset startOfWeek = dateAdd("d", -(dayOfWeek(now()) - 2), now())>
-    <cfif dayOfWeek(startOfWeek) EQ 1>
-        <cfset startOfWeek = dateAdd("d", -6, startOfWeek)>
+    <!--- Calculate week starting from Monday (dayOfWeek: Sunday=1, Monday=2, ..., Saturday=7) --->
+    <cfset currentDayOfWeek = dayOfWeek(now())>
+    <cfset daysFromMonday = currentDayOfWeek - 2>
+    <cfif currentDayOfWeek EQ 1> <!--- If today is Sunday, go back 6 days to get to Monday --->
+        <cfset daysFromMonday = 6>
     </cfif>
+    <cfset startOfWeek = dateAdd("d", -daysFromMonday, now())>
     <cfset endOfWeek = dateAdd("d", 6, startOfWeek)>
     
     <!--- Handle leaderboard time period selection --->
