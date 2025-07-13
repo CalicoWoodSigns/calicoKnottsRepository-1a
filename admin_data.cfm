@@ -206,9 +206,14 @@
             <!--- Admin Interface --->
             <div class="row">
                 <div class="col-12">
-                    <h1 class="display-6 fw-bold mb-4">
-                        <i class="bi bi-gear-fill"></i> Admin Data Management
-                    </h1>
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <h1 class="display-6 fw-bold mb-0">
+                            <i class="bi bi-gear-fill"></i> Admin Data Management
+                        </h1>
+                        <a href="http://localhost:8080/deploy.html" target="_blank" class="btn btn-primary">
+                            <i class="bi bi-rocket-takeoff"></i> Deployment Center
+                        </a>
+                    </div>
                 </div>
             </div>
 
@@ -236,6 +241,11 @@
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="sales-tab" data-bs-toggle="tab" data-bs-target="#sales" type="button" role="tab">
                         <i class="bi bi-currency-dollar"></i> Sales Records
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="deployment-tab" data-bs-toggle="tab" data-bs-target="#deployment" type="button" role="tab">
+                        <i class="bi bi-rocket-takeoff"></i> Deployment
                     </button>
                 </li>
             </ul>
@@ -553,6 +563,134 @@
                         </div>
                     </div>
                 </div>
+                
+                <!--- Deployment Tab --->
+                <div class="tab-pane fade" id="deployment" role="tabpanel">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="card-title mb-0">
+                                        <i class="bi bi-rocket-takeoff text-primary"></i> Deployment Center
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="alert alert-info mb-4">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>Deploy to Production:</strong> Use these tools to sync your local development changes to the live server at calicoknotts.com
+                                    </div>
+                                    
+                                    <div class="row g-4">
+                                        <div class="col-md-4">
+                                            <div class="card h-100 border-success bg-light">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-git text-success mb-3" style="font-size: 2rem;"></i>
+                                                    <h6>Git + Deploy (Recommended)</h6>
+                                                    <p class="text-muted small">Commit changes to git, then deploy to server.</p>
+                                                    <button class="btn btn-success btn-sm" onclick="copyToClipboard('./git-deploy.sh')">
+                                                        <i class="bi bi-clipboard"></i> Copy Git Deploy
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-4">
+                                            <div class="card h-100 border-primary">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-rocket-takeoff text-primary mb-3" style="font-size: 2rem;"></i>
+                                                    <h6>Quick Deploy (VS Code Task)</h6>
+                                                    <p class="text-muted small">Press <kbd>Cmd+Shift+P</kbd> → "Tasks: Run Task" → "🚀 Deploy to Calico Knotts Production"</p>
+                                                    <button class="btn btn-primary btn-sm" onclick="copyToClipboard('Cmd+Shift+P → Tasks: Run Task → 🚀 Deploy to Calico Knotts Production')">
+                                                        <i class="bi bi-clipboard"></i> Copy Instructions
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-md-4">
+                                            <div class="card h-100 border-secondary">
+                                                <div class="card-body text-center">
+                                                    <i class="bi bi-terminal text-secondary mb-3" style="font-size: 2rem;"></i>
+                                                    <h6>Terminal Commands</h6>
+                                                    <div class="d-grid gap-2">
+                                                        <button class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('./quick-deploy-ftps.sh')">
+                                                            <i class="bi bi-clipboard"></i> Copy Quick Deploy
+                                                        </button>
+                                                        <button class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('./deploy-to-remote.sh')">
+                                                            <i class="bi bi-clipboard"></i> Copy Full Deploy
+                                                        </button>
+                                                        <button class="btn btn-outline-secondary btn-sm" onclick="copyToClipboard('python3 upload-to-remote.py')">
+                                                            <i class="bi bi-clipboard"></i> Copy Python Upload
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <div class="card border-warning">
+                                                <div class="card-body">
+                                                    <h6><i class="bi bi-display text-warning"></i> Deployment Dashboard</h6>
+                                                    <p class="mb-3">Full deployment interface with visual controls and status monitoring:</p>
+                                                    <a href="http://localhost:8080/deploy.html" target="_blank" class="btn btn-warning">
+                                                        <i class="bi bi-box-arrow-up-right"></i> Open Deployment Center
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <div class="card border-secondary">
+                                                <div class="card-body">
+                                                    <h6><i class="bi bi-server text-secondary"></i> Server Information</h6>
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <small>
+                                                                <strong>Host:</strong> car-cfs06.cfdynamics.com<br>
+                                                                <strong>Username:</strong> calicokn<br>
+                                                                <strong>Protocol:</strong> FTPS (Explicit TLS)
+                                                            </small>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <small>
+                                                                <strong>Path:</strong> calicoknotts.com/wwwroot/<br>
+                                                                <strong>Files:</strong> ~25 items (~316KB)<br>
+                                                                <strong>Mode:</strong> Passive
+                                                            </small>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <div class="col-12">
+                                            <div class="card border-info">
+                                                <div class="card-body">
+                                                    <h6><i class="bi bi-check-circle text-info"></i> Post-Deployment Verification</h6>
+                                                    <p class="mb-2">After deployment, verify these URLs are working:</p>
+                                                    <div class="btn-group-vertical d-grid gap-1" role="group">
+                                                        <a href="https://calicoknotts.com/" target="_blank" class="btn btn-outline-info btn-sm">
+                                                            <i class="bi bi-house"></i> Main Dashboard
+                                                        </a>
+                                                        <a href="https://calicoknotts.com/remote_dsn_test.cfm" target="_blank" class="btn btn-outline-info btn-sm">
+                                                            <i class="bi bi-database"></i> Database Connection Test
+                                                        </a>
+                                                        <a href="https://calicoknotts.com/employee_profile.cfm" target="_blank" class="btn btn-outline-info btn-sm">
+                                                            <i class="bi bi-person"></i> Employee Profile
+                                                        </a>
+                                                        <a href="https://calicoknotts.com/sync-status.cfm" target="_blank" class="btn btn-outline-info btn-sm">
+                                                            <i class="bi bi-arrow-repeat"></i> Sync Status
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </cfif>
     </div>
@@ -787,6 +925,37 @@
                 document.getElementById('editEmpFirstName').value = '';
                 document.getElementById('editEmpLastName').value = '';
             }
+        }
+        
+        // Copy text to clipboard for deployment commands
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(function() {
+                // Show success message
+                const toast = document.createElement('div');
+                toast.className = 'position-fixed top-0 end-0 p-3';
+                toast.style.zIndex = '1055';
+                toast.innerHTML = `
+                    <div class="toast show" role="alert">
+                        <div class="toast-header">
+                            <i class="bi bi-check-circle text-success me-2"></i>
+                            <strong class="me-auto">Copied!</strong>
+                            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+                        </div>
+                        <div class="toast-body">
+                            Command copied to clipboard
+                        </div>
+                    </div>
+                `;
+                document.body.appendChild(toast);
+                
+                // Auto remove after 3 seconds
+                setTimeout(() => {
+                    toast.remove();
+                }, 3000);
+            }).catch(function() {
+                // Fallback for older browsers
+                alert('Copied to clipboard: ' + text);
+            });
         }
         
     </script>

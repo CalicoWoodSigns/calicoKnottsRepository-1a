@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🚀 Calico Knotts Deployment</title>
+    <meta charset="UTF-8">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #2c2b3c;
+            color: #eaeaea;
+            padding: 20px;
+            margin: 0;
+        }
+        .container { max-width: 800px; margin: 0 auto; }
+        .header {
+            background: linear-gradient(45deg, #ff570a, #fe7f2d);
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+        .deploy-card {
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+        .deploy-btn {
+            background: linear-gradient(45deg, #ff570a, #fe7f2d);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+        }
+        .deploy-btn:hover { transform: scale(1.02); }
+        .command {
+            background: #1a1929;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin: 10px 0;
+            border: 1px solid #444;
+        }
+        .status { color: #4CAF50; }
+        .warning { color: #FF9800; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Calico Knotts Deployment Center</h1>
+            <p>Deploy your enhanced dashboard to production</p>
+        </div>
+
+        <div class="deploy-card">
+            <h3>📊 Project Status</h3>
+            <p class="status">✅ All files ready for deployment</p>
+            <p class="status">✅ Git repository up to date</p>
+            <p class="status">✅ Deployment scripts configured</p>
+        </div>
+
+        <div class="deploy-card">
+            <h3>🔧 Quick Deploy Options</h3>
+            
+            <h4>Option 1: Git + Deploy Workflow (New!)</h4>
+            <p>Commit changes to git, then deploy to server</p>
+            <div class="command">./git-deploy.sh</div>
+            <button class="deploy-btn" onclick="copyCommand('./git-deploy.sh')">Copy Git Deploy Command</button>
+            
+            <h4>Option 2: VS Code Task</h4>
+            <p>Press <code>Cmd+Shift+P</code> → "Tasks: Run Task" → "🚀 Deploy to Calico Knotts Production"</p>
+            
+            <h4>Option 3: Terminal Commands</h4>
+            <div class="command">./quick-deploy-ftps.sh</div>
+            <button class="deploy-btn" onclick="copyCommand('./quick-deploy-ftps.sh')">Copy Quick Deploy Command</button>
+            
+            <div class="command">./deploy-to-remote.sh</div>
+            <button class="deploy-btn" onclick="copyCommand('./deploy-to-remote.sh')">Copy Full Deploy Command</button>
+            
+            <div class="command">python3 upload-to-remote.py</div>
+            <button class="deploy-btn" onclick="copyCommand('python3 upload-to-remote.py')">Copy Python Upload Command</button>
+        </div>
+
+        <div class="deploy-card">
+            <h3>🌐 Server Details</h3>
+            <p><strong>Host:</strong> car-cfs06.cfdynamics.com</p>
+            <p><strong>Username:</strong> calicokn</p>
+            <p><strong>Path:</strong> calicoknotts.com/wwwroot/</p>
+            <p><strong>Protocol:</strong> FTPS (Explicit TLS)</p>
+        </div>
+
+        <div class="deploy-card">
+            <h3>🎯 Access Your Admin Panel</h3>
+            <p>Open your ColdFusion admin page with deployment tools:</p>
+            <a href="http://localhost:8500/calicoknotts/admin_data.cfm" target="_blank" style="color: #fe7f2d; font-size: 1.1rem;">
+                <i class="bi bi-gear-fill"></i> • Open Admin Panel (with Deployment Tab)
+            </a><br><br>
+            
+            <p>After deployment, test these URLs:</p>
+            <a href="https://calicoknotts.com/" target="_blank" style="color: #fe7f2d;">• Main Dashboard</a><br>
+            <a href="https://calicoknotts.com/remote_dsn_test.cfm" target="_blank" style="color: #fe7f2d;">• Connection Test</a><br>
+            <a href="https://calicoknotts.com/employee_profile.cfm" target="_blank" style="color: #fe7f2d;">• Employee Profile</a><br>
+            <a href="https://calicoknotts.com/admin_data.cfm" target="_blank" style="color: #fe7f2d;">• Admin Panel</a>
+        </div>
+
+        <div class="deploy-card">
+            <h3>📁 Files Being Deployed</h3>
+            <ul style="column-count: 2;">
+                <li>Application.cfc</li>
+                <li>index.cfm</li>
+                <li>employee_profile.cfm</li>
+                <li>admin_data.cfm</li>
+                <li>error.cfm</li>
+                <li>remote_dsn_test.cfm</li>
+                <li>components/ (5 CFCs)</li>
+                <li>includes/ (3 templates)</li>
+                <li>assets/ (CSS, JS)</li>
+                <li>web.config</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        function copyCommand(cmd) {
+            navigator.clipboard.writeText(cmd).then(() => {
+                alert('Command copied to clipboard!\n\nRun this in your VS Code terminal:\n' + cmd);
+            }).catch(() => {
+                // Fallback for older browsers
+                prompt('Copy this command:', cmd);
+            });
+        }
+        
+        // Show current time
+        document.addEventListener('DOMContentLoaded', function() {
+            const time = new Date().toLocaleString();
+            document.querySelector('.header p').innerHTML += '<br><small>Generated: ' + time + '</small>';
+        });
+    </script>
+</body>
+</html>
